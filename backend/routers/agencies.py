@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from datetime import datetime
-from ..models import Agency, AgencyCreate
-from ..database import agencies_collection, users_collection, convert_id
-from .users import get_current_user
+from backend.models import Agency, AgencyCreate
+from backend.database import agencies_collection, users_collection, convert_id
+from backend.routers.users import get_current_user
 from bson import ObjectId
 
 router = APIRouter()

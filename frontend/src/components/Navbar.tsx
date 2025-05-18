@@ -82,7 +82,7 @@ const Navbar = () => {
               textDecoration: 'none',
             }}
           >
-            Citizen Complaints
+            RCE
           </Typography>
 
           <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
@@ -184,7 +184,7 @@ const Navbar = () => {
             }
           </Box>
 
-          {user && (
+          {user ? (
             <Box sx={{ flexGrow: 0 }}>
               <Tooltip title="Open settings">
                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
@@ -227,6 +227,24 @@ const Navbar = () => {
                   <Typography textAlign="center">Logout</Typography>
                 </MenuItem>
               </Menu>
+            </Box>
+          ) : (
+            <Box sx={{ flexGrow: 0 }}>
+              <Button
+                component={RouterLink}
+                to="/login"
+                sx={{ color: 'white', mr: 2 }}
+              >
+                Login
+              </Button>
+              <Button
+                component={RouterLink}
+                to="/register"
+                variant="outlined"
+                sx={{ color: 'white', borderColor: 'white' }}
+              >
+                Register
+              </Button>
             </Box>
           )}
         </Toolbar>

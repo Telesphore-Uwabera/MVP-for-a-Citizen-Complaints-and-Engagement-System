@@ -39,7 +39,7 @@ const Logo: React.FC<LogoProps> = ({ variant = 'default' }) => {
             display: { xs: 'none', sm: 'block' },
           }}
         >
-          Citizen Complaints
+          RCE
         </Typography>
       )}
     </Box>

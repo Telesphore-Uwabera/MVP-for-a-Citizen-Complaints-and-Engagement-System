@@ -15,6 +15,7 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import ComplaintForm from './pages/ComplaintForm';
 import ComplaintDetails from './pages/ComplaintDetails';
 import SubmitComplaint from './pages/SubmitComplaint';
+import Footer from './components/Footer';
 
 const theme = createTheme({
   palette: {
@@ -88,6 +89,7 @@ function App() {
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          <Footer />
         </Router>
       </AuthProvider>
     </ThemeProvider>
