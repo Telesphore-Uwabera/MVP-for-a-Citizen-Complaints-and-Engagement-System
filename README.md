@@ -1,5 +1,91 @@
 # Rwanda Citizen Engagement System
 
+## How to Use the Application
+
+### For Citizens (End Users)
+
+1. **Access the Application**
+   - Open your browser and go to `http://localhost:3000` (or the deployed URL).
+
+2. **Register an Account**
+   - Click on the **Register** link.
+   - Fill in your details:
+     - Email Address
+     - Password & Confirm Password
+     - Full Name
+     - National ID (16 digits)
+     - Phone Number (Rwanda format)
+   - Click **Register**.
+   - If registration fails, check for:
+     - All fields are filled correctly.
+     - Password meets requirements.
+     - National ID is 16 digits.
+     - Phone number is valid.
+     - The email or national ID is not already registered.
+
+3. **Log In**
+   - After registering, go to the **Sign In** page.
+   - Enter your email and password.
+   - Click **Login**.
+
+4. **Submit a Complaint**
+   - Once logged in, navigate to the **Dashboard**.
+   - Click **Submit Complaint**.
+   - Fill in the complaint form (title, description, category, location, etc.).
+   - Attach files if needed.
+   - Submit your complaint.
+   - You can track the status of your complaints from the dashboard.
+
+5. **View Complaint Status**
+   - Go to the dashboard to see all your submitted complaints and their statuses.
+
+---
+
+### For Admins (System/Admin/Agency)
+
+1. **Create a Superuser (First Time Only)**
+   - In the backend directory, run:
+     ```bash
+     python create_superuser.py admin@rwanda.gov Admin@12345 "System Administrator" 0785043355 1200280067198176
+     ```
+   - Log in with the superuser credentials.
+
+2. **Access the Admin Dashboard**
+   - Log in as an admin.
+   - Access the dashboard to manage users, agencies, and complaints.
+
+3. **Manage Complaints**
+   - View, assign, and update the status of complaints.
+   - Use analytics and search features as needed.
+
+---
+
+### Troubleshooting & Tips
+
+- **Registration Fails:**
+  - Check the error message. Common issues:
+    - Duplicate email or national ID.
+    - Invalid field formats.
+    - Backend server is not running.
+    - MongoDB is not running.
+- **Cannot Connect to Backend:**
+  - Ensure the backend is running with:
+    ```bash
+    uvicorn backend.main:app --reload --port 5000
+    ```
+  - Ensure MongoDB is running and accessible.
+- **Frontend Not Loading:**
+  - Make sure you are in the `frontend` directory and run:
+    ```bash
+    npm start
+    ```
+- **Method Not Allowed (405):**
+  - This means you tried to access a POST endpoint (like `/api/auth/register`) with a GET request (e.g., by visiting the URL directly). Use the app's forms to interact with these endpoints.
+- **422 Unprocessable Content:**
+  - The data sent to the backend does not match what is expected. Double-check the registration form fields.
+
+---
+
 A modern platform for Rwandan citizens to submit complaints and feedback about public services, enabling better communication between citizens and government agencies.
 
 ## Features
@@ -104,6 +190,7 @@ A modern platform for Rwandan citizens to submit complaints and feedback about p
    python -m venv venv
    source venv/bin/activate  # On Windows: .\venv\Scripts\activate
    pip install -r requirements.txt
+   pip install email-validator
    uvicorn main:app --reload --port 5000
    ```
 

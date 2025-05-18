@@ -28,7 +28,7 @@ const adminPages = [
 ];
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
   const navigate = useNavigate();
   const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
@@ -52,6 +52,17 @@ const Navbar = () => {
     logout();
     handleCloseUserMenu();
     navigate('/');
+  };
+
+  const handleRoleSwitch = (newRole: string) => {
+    if (user) {
+      setUser({
+        ...user,
+        role: newRole as 'citizen' | 'agency_admin' | 'system_admin'
+      });
+    }
+    handleCloseUserMenu();
+    navigate('/dashboard');
   };
 
   return (
@@ -113,16 +124,18 @@ const Navbar = () => {
                   <Typography textAlign="center">{page.name}</Typography>
                 </MenuItem>
               ))}
-              {user?.role === 'agency_admin' && adminPages.map((page) => (
-                <MenuItem
-                  key={page.name}
-                  onClick={handleCloseNavMenu}
-                  component={RouterLink}
-                  to={page.path}
-                >
-                  <Typography textAlign="center">{page.name}</Typography>
-                </MenuItem>
-              ))}
+              {(user?.role === 'agency_admin' || user?.parentRole === 'agency_admin' || user?.parentRole === 'system_admin') && 
+                adminPages.map((page) => (
+                  <MenuItem
+                    key={page.name}
+                    onClick={handleCloseNavMenu}
+                    component={RouterLink}
+                    to={page.path}
+                  >
+                    <Typography textAlign="center">{page.name}</Typography>
+                  </MenuItem>
+                ))
+              }
             </Menu>
           </Box>
 
@@ -140,7 +153,7 @@ const Navbar = () => {
               textDecoration: 'none',
             }}
           >
-            Citizen Complaints
+            RCE
           </Typography>
 
           <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
@@ -155,72 +168,67 @@ const Navbar = () => {
                 {page.name}
               </Button>
             ))}
-            {user?.role === 'agency_admin' && adminPages.map((page) => (
-              <Button
-                key={page.name}
-                component={RouterLink}
-                to={page.path}
-                onClick={handleCloseNavMenu}
-                sx={{ my: 2, color: 'white', display: 'block' }}
-              >
-                {page.name}
-              </Button>
-            ))}
+            
+            {(user?.role === 'agency_admin' || user?.parentRole === 'agency_admin' || user?.parentRole === 'system_admin') && 
+              adminPages.map((page) => (
+                <Button
+                  key={page.name}
+                  component={RouterLink}
+                  to={page.path}
+                  onClick={handleCloseNavMenu}
+                  sx={{ my: 2, color: 'white', display: 'block' }}
+                >
+                  {page.name}
+                </Button>
+              ))
+            }
           </Box>
 
-          <Box sx={{ flexGrow: 0 }}>
-            {user ? (
-              <>
-                <Tooltip title="Open settings">
-                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar alt={user.name} src="/static/images/avatar/2.jpg" />
-                  </IconButton>
-                </Tooltip>
-                <Menu
-                  sx={{ mt: '45px' }}
-                  id="menu-appbar"
-                  anchorEl={anchorElUser}
-                  anchorOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                  keepMounted
-                  transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                  open={Boolean(anchorElUser)}
-                  onClose={handleCloseUserMenu}
-                >
-                  <MenuItem onClick={handleCloseUserMenu}>
-                    <Typography textAlign="center">Profile</Typography>
+          {user && (
+            <Box sx={{ flexGrow: 0 }}>
+              <Tooltip title="Open settings">
+                <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                  <Avatar alt={user.name} src="/static/images/avatar/2.jpg" />
+                </IconButton>
+              </Tooltip>
+              <Menu
+                sx={{ mt: '45px' }}
+                id="menu-appbar"
+                anchorEl={anchorElUser}
+                anchorOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                keepMounted
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                open={Boolean(anchorElUser)}
+                onClose={handleCloseUserMenu}
+              >
+                <MenuItem onClick={() => handleRoleSwitch('citizen')}>
+                  <Typography textAlign="center">Switch to Citizen View</Typography>
+                </MenuItem>
+                
+                {(user.parentRole === 'agency_admin' || user.parentRole === 'system_admin') && (
+                  <MenuItem onClick={() => handleRoleSwitch('agency_admin')}>
+                    <Typography textAlign="center">Switch to Agency Admin View</Typography>
                   </MenuItem>
-                  <MenuItem onClick={handleLogout}>
-                    <Typography textAlign="center">Logout</Typography>
+                )}
+                
+                {user.parentRole === 'system_admin' && (
+                  <MenuItem onClick={() => handleRoleSwitch('system_admin')}>
+                    <Typography textAlign="center">Switch to System Admin View</Typography>
                   </MenuItem>
-                </Menu>
-              </>
-            ) : (
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
-                  component={RouterLink}
-                  to="/login"
-                  color="inherit"
-                  variant="outlined"
-                >
-                  Login
-                </Button>
-                <Button
-                  component={RouterLink}
-                  to="/register"
-                  color="inherit"
-                  variant="contained"
-                >
-                  Register
-                </Button>
-              </Box>
-            )}
-          </Box>
+                )}
+                
+                <MenuItem onClick={handleLogout}>
+                  <Typography textAlign="center">Logout</Typography>
+                </MenuItem>
+              </Menu>
+            </Box>
+          )}
         </Toolbar>
       </Container>
     </AppBar>

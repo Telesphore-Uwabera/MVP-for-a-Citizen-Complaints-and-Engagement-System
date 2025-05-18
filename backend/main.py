@@ -2,12 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime
-
-from database import engine, Base
-from routers import users, complaints, agencies
-
-# Create database tables
-Base.metadata.create_all(bind=engine)
+from backend.routers import users, complaints, agencies
+from backend.database import client
 
 app = FastAPI(
     title="Rwanda Citizen Engagement System API",
@@ -25,9 +21,13 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(users.router)
-app.include_router(complaints.router)
-app.include_router(agencies.router)
+app.include_router(users.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(complaints.router, prefix="/api/complaints", tags=["Complaints"])
+app.include_router(agencies.router, prefix="/api/agencies", tags=["Agencies"])
+
+@app.on_event("shutdown")
+async def shutdown_db_client():
+    client.close()
 
 @app.get("/")
 async def root():
@@ -48,4 +48,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    uvicorn.run(app, host="0.0.0.0", port=5000) 

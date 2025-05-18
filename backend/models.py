@@ -1,78 +1,82 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Text, Enum
-from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
-import enum
 from datetime import datetime
+from typing import Optional, List
+from pydantic import BaseModel, EmailStr, Field
+from bson import ObjectId
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import core_schema
 
-Base = declarative_base()
+class PyObjectId(ObjectId):
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema, handler):
+        # This tells Pydantic v2 how to generate the JSON schema for this type
+        return {'type': 'string'}
 
-class ComplaintStatus(str, enum.Enum):
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    RESOLVED = "resolved"
-    CLOSED = "closed"
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source, handler: GetCoreSchemaHandler):
+        return core_schema.no_info_plain_validator_function(
+            cls.validate,
+            serialization=core_schema.to_string_ser_schema(),
+        )
 
-class UserRole(str, enum.Enum):
-    CITIZEN = "citizen"
-    AGENCY_ADMIN = "agency_admin"
-    SYSTEM_ADMIN = "system_admin"
+    @classmethod
+    def validate(cls, v):
+        if not ObjectId.is_valid(v):
+            raise ValueError("Invalid ObjectId")
+        return ObjectId(v)
 
-class User(Base):
-    __tablename__ = "users"
+class MongoBaseModel(BaseModel):
+    id: Optional[PyObjectId] = Field(alias="_id", default=None)
 
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    full_name = Column(String)
-    phone_number = Column(String)
-    national_id = Column(String, unique=True)
-    role = Column(Enum(UserRole), default=UserRole.CITIZEN)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    complaints = relationship("Complaint", back_populates="submitter")
-    agency = relationship("Agency", back_populates="admin")
+    class Config:
+        json_encoders = {ObjectId: str}
+        validate_by_name = True
 
-class Agency(Base):
-    __tablename__ = "agencies"
+class UserBase(MongoBaseModel):
+    email: EmailStr
+    full_name: str
+    phone_number: str
+    national_id: str
+    role: str = "citizen"
+    parent_role: Optional[str] = None
+    is_active: bool = True
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
-    description = Column(Text)
-    contact_email = Column(String)
-    contact_phone = Column(String)
-    admin_id = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    admin = relationship("User", back_populates="agency")
-    complaints = relationship("Complaint", back_populates="assigned_agency")
+class UserCreate(UserBase):
+    password: str
 
-class Complaint(Base):
-    __tablename__ = "complaints"
+class User(UserBase):
+    hashed_password: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    description = Column(Text)
-    category = Column(String, index=True)
-    status = Column(Enum(ComplaintStatus), default=ComplaintStatus.PENDING)
-    priority = Column(Integer, default=1)  # 1-5 scale
-    submitter_id = Column(Integer, ForeignKey("users.id"))
-    assigned_agency_id = Column(Integer, ForeignKey("agencies.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    submitter = relationship("User", back_populates="complaints")
-    assigned_agency = relationship("Agency", back_populates="complaints")
-    responses = relationship("ComplaintResponse", back_populates="complaint")
+class ComplaintBase(MongoBaseModel):
+    title: str
+    description: str
+    category: str
+    location: str
+    status: str = "pending"
+    priority: str = "medium"
+    attachments: List[str] = []
 
-class ComplaintResponse(Base):
-    __tablename__ = "complaint_responses"
+class ComplaintCreate(ComplaintBase):
+    pass
 
-    id = Column(Integer, primary_key=True, index=True)
-    complaint_id = Column(Integer, ForeignKey("complaints.id"))
-    responder_id = Column(Integer, ForeignKey("users.id"))
-    message = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    complaint = relationship("Complaint", back_populates="responses")
-    responder = relationship("User") 
+class Complaint(ComplaintBase):
+    user_id: PyObjectId
+    agency_id: Optional[PyObjectId] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    resolved_at: Optional[datetime] = None
+
+class AgencyBase(MongoBaseModel):
+    name: str
+    description: str
+    email: EmailStr
+    phone_number: str
+    address: str
+
+class AgencyCreate(AgencyBase):
+    pass
+
+class Agency(AgencyBase):
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow) 

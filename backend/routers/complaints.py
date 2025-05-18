@@ -1,128 +1,122 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from typing import List, Optional
 from datetime import datetime
+from backend.models import Complaint, ComplaintCreate
+from backend.database import complaints_collection, users_collection, agencies_collection, convert_id
+from backend.routers.users import get_current_user
+from bson import ObjectId
 
-import models
-import schemas
-from database import get_db
-from auth import get_current_active_user
+router = APIRouter()
 
-router = APIRouter(
-    prefix="/complaints",
-    tags=["complaints"]
-)
-
-@router.post("/", response_model=schemas.Complaint)
-def create_complaint(
-    complaint: schemas.ComplaintCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+@router.post("/", response_model=Complaint)
+async def create_complaint(
+    complaint: ComplaintCreate,
+    current_user: dict = Depends(get_current_user)
 ):
-    db_complaint = models.Complaint(
-        **complaint.dict(),
-        submitter_id=current_user.id,
-        status=models.ComplaintStatus.PENDING
-    )
-    db.add(db_complaint)
-    db.commit()
-    db.refresh(db_complaint)
-    return db_complaint
+    complaint_dict = complaint.dict()
+    complaint_dict["user_id"] = ObjectId(current_user["_id"])
+    complaint_dict["created_at"] = datetime.utcnow()
+    complaint_dict["updated_at"] = datetime.utcnow()
+    
+    result = await complaints_collection.insert_one(complaint_dict)
+    created_complaint = await complaints_collection.find_one({"_id": result.inserted_id})
+    return convert_id(created_complaint)
 
-@router.get("/", response_model=List[schemas.Complaint])
-def read_complaints(
+@router.get("/", response_model=List[Complaint])
+async def read_complaints(
+    current_user: dict = Depends(get_current_user),
     skip: int = 0,
-    limit: int = 100,
-    status: Optional[models.ComplaintStatus] = None,
-    category: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    limit: int = 10,
+    status: Optional[str] = None
 ):
-    query = db.query(models.Complaint)
+    query = {}
+    
+    # Filter by user role
+    if current_user["role"] == "citizen":
+        query["user_id"] = ObjectId(current_user["_id"])
+    elif current_user["role"] == "agency_admin":
+        agency = await agencies_collection.find_one({"admin_id": ObjectId(current_user["_id"])})
+        if agency:
+            query["agency_id"] = agency["_id"]
     
     # Filter by status if provided
     if status:
-        query = query.filter(models.Complaint.status == status)
+        query["status"] = status
     
-    # Filter by category if provided
-    if category:
-        query = query.filter(models.Complaint.category == category)
-    
-    # If user is not admin, only show their complaints
-    if current_user.role == models.UserRole.CITIZEN:
-        query = query.filter(models.Complaint.submitter_id == current_user.id)
-    
-    # If user is agency admin, show complaints assigned to their agency
-    elif current_user.role == models.UserRole.AGENCY_ADMIN:
-        agency = db.query(models.Agency).filter(models.Agency.admin_id == current_user.id).first()
-        if agency:
-            query = query.filter(models.Complaint.assigned_agency_id == agency.id)
-    
-    complaints = query.offset(skip).limit(limit).all()
-    return complaints
+    complaints = await complaints_collection.find(query).skip(skip).limit(limit).to_list(length=None)
+    return [convert_id(complaint) for complaint in complaints]
 
-@router.get("/{complaint_id}", response_model=schemas.Complaint)
-def read_complaint(
-    complaint_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+@router.get("/{complaint_id}", response_model=Complaint)
+async def read_complaint(
+    complaint_id: str,
+    current_user: dict = Depends(get_current_user)
 ):
-    complaint = db.query(models.Complaint).filter(models.Complaint.id == complaint_id).first()
+    complaint = await complaints_collection.find_one({"_id": ObjectId(complaint_id)})
     if not complaint:
         raise HTTPException(status_code=404, detail="Complaint not found")
     
-    # Check if user has permission to view this complaint
-    if (current_user.role == models.UserRole.CITIZEN and 
-        complaint.submitter_id != current_user.id):
+    # Check authorization
+    if current_user["role"] == "citizen" and str(complaint["user_id"]) != current_user["_id"]:
         raise HTTPException(status_code=403, detail="Not authorized to view this complaint")
     
-    return complaint
+    return convert_id(complaint)
 
-@router.put("/{complaint_id}", response_model=schemas.Complaint)
-def update_complaint(
-    complaint_id: int,
-    complaint_update: schemas.ComplaintCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+@router.put("/{complaint_id}", response_model=Complaint)
+async def update_complaint(
+    complaint_id: str,
+    status: str,
+    current_user: dict = Depends(get_current_user)
 ):
-    db_complaint = db.query(models.Complaint).filter(models.Complaint.id == complaint_id).first()
-    if not db_complaint:
-        raise HTTPException(status_code=404, detail="Complaint not found")
-    
-    # Only allow updates from the submitter or agency admin
-    if (current_user.role == models.UserRole.CITIZEN and 
-        db_complaint.submitter_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Not authorized to update this complaint")
-    
-    for key, value in complaint_update.dict().items():
-        setattr(db_complaint, key, value)
-    
-    db_complaint.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(db_complaint)
-    return db_complaint
-
-@router.post("/{complaint_id}/responses", response_model=schemas.ComplaintResponse)
-def create_complaint_response(
-    complaint_id: int,
-    response: schemas.ComplaintResponseCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    complaint = db.query(models.Complaint).filter(models.Complaint.id == complaint_id).first()
+    complaint = await complaints_collection.find_one({"_id": ObjectId(complaint_id)})
     if not complaint:
         raise HTTPException(status_code=404, detail="Complaint not found")
     
-    # Check if user has permission to respond
-    if (current_user.role == models.UserRole.CITIZEN and 
-        complaint.submitter_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Not authorized to respond to this complaint")
+    # Check authorization
+    if current_user["role"] == "citizen" and str(complaint["user_id"]) != current_user["_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to update this complaint")
     
-    db_response = models.ComplaintResponse(
-        **response.dict(),
-        responder_id=current_user.id
+    # Update complaint
+    update_data = {
+        "status": status,
+        "updated_at": datetime.utcnow()
+    }
+    if status == "resolved":
+        update_data["resolved_at"] = datetime.utcnow()
+    
+    await complaints_collection.update_one(
+        {"_id": ObjectId(complaint_id)},
+        {"$set": update_data}
     )
-    db.add(db_response)
-    db.commit()
-    db.refresh(db_response)
-    return db_response 
+    
+    updated_complaint = await complaints_collection.find_one({"_id": ObjectId(complaint_id)})
+    return convert_id(updated_complaint)
+
+@router.post("/{complaint_id}/assign")
+async def assign_complaint(
+    complaint_id: str,
+    agency_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "system_admin":
+        raise HTTPException(status_code=403, detail="Only system admin can assign complaints")
+    
+    complaint = await complaints_collection.find_one({"_id": ObjectId(complaint_id)})
+    if not complaint:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+    
+    agency = await agencies_collection.find_one({"_id": ObjectId(agency_id)})
+    if not agency:
+        raise HTTPException(status_code=404, detail="Agency not found")
+    
+    await complaints_collection.update_one(
+        {"_id": ObjectId(complaint_id)},
+        {
+            "$set": {
+                "agency_id": ObjectId(agency_id),
+                "status": "in_progress",
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    return {"message": "Complaint assigned successfully"} 

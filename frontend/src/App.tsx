@@ -14,6 +14,7 @@ import AgencyDashboard from './pages/AgencyDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import ComplaintForm from './pages/ComplaintForm';
 import ComplaintDetails from './pages/ComplaintDetails';
+import SubmitComplaint from './pages/SubmitComplaint';
 
 const theme = createTheme({
   palette: {
@@ -46,19 +47,27 @@ function App() {
               }
             />
             <Route
+              path="/submit-complaint"
+              element={
+                <PrivateRoute>
+                  <SubmitComplaint />
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/agency-dashboard"
               element={
-                <AdminRoute>
+                <PrivateRoute allowedRoles={['agency_admin', 'system_admin']}>
                   <AgencyDashboard />
-                </AdminRoute>
+                </PrivateRoute>
               }
             />
             <Route
               path="/super-admin"
               element={
-                <AdminRoute>
+                <PrivateRoute allowedRoles={['system_admin']}>
                   <SuperAdminDashboard />
-                </AdminRoute>
+                </PrivateRoute>
               }
             />
             <Route

@@ -11,33 +11,31 @@ import {
   Link,
 } from '@mui/material';
 import { useFormik } from 'formik';
-import * as yup from 'yup';
+import * as Yup from 'yup';
 import { useAuth } from '../contexts/AuthContext';
 
-const validationSchema = yup.object({
-  name: yup
-    .string()
-    .required('Name is required'),
-  email: yup
-    .string()
-    .email('Enter a valid email')
-    .required('Email is required'),
-  nationalId: yup
-    .string()
+const validationSchema = Yup.object({
+  email: Yup.string()
+    .email('Invalid email address')
+    .required('Required'),
+  password: Yup.string()
+    .min(8, 'Password must be at least 8 characters')
+    .matches(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .matches(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .matches(/[0-9]/, 'Password must contain at least one number')
+    .matches(/[^A-Za-z0-9]/, 'Password must contain at least one special character')
+    .required('Required'),
+  confirmPassword: Yup.string()
+    .oneOf([Yup.ref('password')], 'Passwords must match')
+    .required('Required'),
+  name: Yup.string()
+    .required('Required'),
+  nationalId: Yup.string()
     .matches(/^\d{16}$/, 'National ID must be exactly 16 digits')
-    .required('National ID is required'),
-  simCard: yup
-    .string()
+    .required('Required'),
+  simCard: Yup.string()
     .matches(/^07\d{8}$/, 'Phone number must start with 07 and be 10 digits')
-    .required('Phone number is required'),
-  password: yup
-    .string()
-    .min(8, 'Password should be of minimum 8 characters length')
-    .required('Password is required'),
-  confirmPassword: yup
-    .string()
-    .oneOf([yup.ref('password')], 'Passwords must match')
-    .required('Confirm password is required'),
+    .required('Required'),
 });
 
 const Register: React.FC = () => {
@@ -47,17 +45,24 @@ const Register: React.FC = () => {
 
   const formik = useFormik({
     initialValues: {
-      name: '',
       email: '',
-      nationalId: '',
-      simCard: '',
       password: '',
       confirmPassword: '',
+      name: '',
+      nationalId: '',
+      simCard: '',
     },
-    validationSchema: validationSchema,
+    validationSchema,
     onSubmit: async (values) => {
       try {
-        await register(values.email, values.password, values.name, values.nationalId, values.simCard);
+        await register({
+          email: values.email,
+          password: values.password,
+          full_name: values.name,
+          national_id: values.nationalId,
+          phone_number: values.simCard,
+          role: 'citizen',
+        });
         navigate('/dashboard');
       } catch (err) {
         setError('Registration failed. Please try again.');
@@ -84,6 +89,47 @@ const Register: React.FC = () => {
               margin="normal"
               required
               fullWidth
+              id="email"
+              label="Email Address"
+              name="email"
+              value={formik.values.email}
+              onChange={formik.handleChange}
+              error={formik.touched.email && Boolean(formik.errors.email)}
+              helperText={formik.touched.email && formik.errors.email}
+              autoComplete="email"
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="password"
+              label="Password"
+              name="password"
+              type="password"
+              value={formik.values.password}
+              onChange={formik.handleChange}
+              error={formik.touched.password && Boolean(formik.errors.password)}
+              helperText={formik.touched.password && formik.errors.password}
+              autoComplete="new-password"
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="confirmPassword"
+              label="Confirm Password"
+              name="confirmPassword"
+              type="password"
+              value={formik.values.confirmPassword}
+              onChange={formik.handleChange}
+              error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
+              helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
+              autoComplete="new-password"
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
               id="name"
               label="Full Name"
               name="name"
@@ -93,19 +139,6 @@ const Register: React.FC = () => {
               helperText={formik.touched.name && formik.errors.name}
               autoComplete="name"
               autoFocus
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
-              value={formik.values.email}
-              onChange={formik.handleChange}
-              error={formik.touched.email && Boolean(formik.errors.email)}
-              helperText={formik.touched.email && formik.errors.email}
-              autoComplete="email"
             />
             <TextField
               margin="normal"
@@ -132,34 +165,6 @@ const Register: React.FC = () => {
               error={formik.touched.simCard && Boolean(formik.errors.simCard)}
               helperText={formik.touched.simCard && formik.errors.simCard}
               placeholder="Enter your phone number (e.g., 0712345678)"
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Password"
-              type="password"
-              id="password"
-              value={formik.values.password}
-              onChange={formik.handleChange}
-              error={formik.touched.password && Boolean(formik.errors.password)}
-              helperText={formik.touched.password && formik.errors.password}
-              autoComplete="new-password"
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="confirmPassword"
-              label="Confirm Password"
-              type="password"
-              id="confirmPassword"
-              value={formik.values.confirmPassword}
-              onChange={formik.handleChange}
-              error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
-              helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
-              autoComplete="new-password"
             />
             <Button
               type="submit"

@@ -1,284 +1,183 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  Box,
   Container,
+  Typography,
+  Box,
   Grid,
   Paper,
-  Typography,
-  Button,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Chip,
+  Button,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  TextField,
-  Alert,
+  CircularProgress,
+  Alert
 } from '@mui/material';
-import {
-  FilterList as FilterIcon,
-  Search as SearchIcon,
-} from '@mui/icons-material';
-import { SelectChangeEvent } from '@mui/material/Select';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Complaint {
   id: string;
   title: string;
   description: string;
-  status: 'pending' | 'in_progress' | 'resolved' | 'rejected';
-  createdAt: string;
-  userId: string;
-  userEmail: string;
-  userPhone: string;
+  category: string;
+  location: string;
+  status: string;
+  priority: string;
+  attachments: string[];
+  user_id: string;
+  agency_id: string | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
 }
 
-const statusColors = {
-  pending: 'warning',
-  in_progress: 'info',
-  resolved: 'success',
-  closed: 'default',
-} as const;
-
-const AgencyDashboard: React.FC = () => {
+const AgencyDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [filters, setFilters] = useState({
-    status: '',
-    category: '',
-    search: '',
-  });
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
+    const fetchComplaints = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/complaints`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch complaints');
+        }
+        const data = await response.json();
+        setComplaints(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('Error fetching complaints:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchComplaints();
   }, []);
 
-  const fetchComplaints = async () => {
+  const handleStatusChange = async (complaintId: string, newStatus: string) => {
     try {
-      const response = await fetch('http://localhost:5000/api/complaints', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch complaints');
-      }
-
-      const data = await response.json();
-      setComplaints(data);
-      setLoading(false);
-    } catch (err) {
-      setError('Failed to load complaints');
-      setLoading(false);
-    }
-  };
-
-  const handleStatusUpdate = async (complaintId: string, newStatus: string) => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/complaints/${complaintId}/status`, {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/complaints/${complaintId}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ status: newStatus }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update status');
+        throw new Error('Failed to update complaint status');
       }
 
-      // Update local state
       setComplaints(complaints.map(complaint =>
         complaint.id === complaintId
-          ? { ...complaint, status: newStatus as Complaint['status'] }
+          ? { ...complaint, status: newStatus }
           : complaint
       ));
-
-      setSuccess('Status updated successfully');
-      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError('Failed to update status');
-      setTimeout(() => setError(null), 3000);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Error updating complaint status:', err);
     }
   };
 
-  const handleFilterChange = (field: string) => (event: SelectChangeEvent) => {
-    setFilters(prev => ({
-      ...prev,
-      [field]: event.target.value
-    }));
-  };
-
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setFilters({
-      ...filters,
-      search: event.target.value,
-    });
-  };
+  const filteredComplaints = statusFilter === 'all'
+    ? complaints
+    : complaints.filter(complaint => complaint.status === statusFilter);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Alert severity="error">{error}</Alert>
+      </Container>
+    );
   }
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Grid container spacing={3}>
-        {/* Header */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-            <Typography component="h1" variant="h4" gutterBottom>
-              Agency Dashboard
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              Manage and respond to citizen complaints
-            </Typography>
-          </Paper>
-        </Grid>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Agency Dashboard
+      </Typography>
 
-        {/* Filters */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2 }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Search Complaints"
-                  value={filters.search}
-                  onChange={handleSearchChange}
-                  InputProps={{
-                    startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={3}>
-                <FormControl fullWidth>
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    value={filters.status}
-                    label="Status"
-                    onChange={handleFilterChange('status')}
-                  >
-                    <MenuItem value="">All</MenuItem>
-                    <MenuItem value="pending">Pending</MenuItem>
-                    <MenuItem value="in_progress">In Progress</MenuItem>
-                    <MenuItem value="resolved">Resolved</MenuItem>
-                    <MenuItem value="closed">Closed</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={3}>
-                <FormControl fullWidth>
-                  <InputLabel>Category</InputLabel>
-                  <Select
-                    value={filters.category}
-                    label="Category"
-                    onChange={handleFilterChange('category')}
-                  >
-                    <MenuItem value="">All</MenuItem>
-                    <MenuItem value="Infrastructure">Infrastructure</MenuItem>
-                    <MenuItem value="Utilities">Utilities</MenuItem>
-                    <MenuItem value="Education">Education</MenuItem>
-                    <MenuItem value="Healthcare">Healthcare</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={2}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<FilterIcon />}
-                  onClick={() => setFilters({ status: '', category: '', search: '' })}
-                >
-                  Reset
-                </Button>
-              </Grid>
-            </Grid>
-          </Paper>
-        </Grid>
+      <Box sx={{ mb: 2 }}>
+        <FormControl variant="outlined" size="small">
+          <InputLabel>Status Filter</InputLabel>
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as string)}
+            label="Status Filter"
+          >
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="pending">Pending</MenuItem>
+            <MenuItem value="in_progress">In Progress</MenuItem>
+            <MenuItem value="resolved">Resolved</MenuItem>
+            <MenuItem value="closed">Closed</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
-        {/* Complaints Table */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-
-            {success && (
-              <Alert severity="success" sx={{ mb: 2 }}>
-                {success}
-              </Alert>
-            )}
-
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Title</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Created At</TableCell>
-                    <TableCell>User Contact</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {complaints.map((complaint) => (
-                    <TableRow key={complaint.id}>
-                      <TableCell>{complaint.title}</TableCell>
-                      <TableCell>{complaint.description}</TableCell>
-                      <TableCell>
-                        <FormControl fullWidth size="small">
-                          <Select
-                            value={complaint.status}
-                            onChange={(e) => handleStatusUpdate(complaint.id, e.target.value)}
-                          >
-                            <MenuItem value="pending">Pending</MenuItem>
-                            <MenuItem value="in_progress">In Progress</MenuItem>
-                            <MenuItem value="resolved">Resolved</MenuItem>
-                            <MenuItem value="rejected">Rejected</MenuItem>
-                          </Select>
-                        </FormControl>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(complaint.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body2">{complaint.userEmail}</Typography>
-                          <Typography variant="body2">{complaint.userPhone}</Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => navigate(`/complaints/${complaint.id}`)}
-                        >
-                          View Details
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </Grid>
-      </Grid>
+      {filteredComplaints.length === 0 ? (
+        <Typography variant="h6" textAlign="center">No complaints found for your agency.</Typography>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Title</TableCell>
+                <TableCell>Category</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Priority</TableCell>
+                <TableCell>Submitted At</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredComplaints.map((complaint) => (
+                <TableRow key={complaint.id}>
+                  <TableCell>{complaint.title}</TableCell>
+                  <TableCell>{complaint.category}</TableCell>
+                  <TableCell>{complaint.status}</TableCell>
+                  <TableCell>{complaint.priority}</TableCell>
+                  <TableCell>{new Date(complaint.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <Button size="small" onClick={() => navigate(`/complaints/${complaint.id}`)} sx={{ mr: 1 }}>View</Button>
+                    {complaint.status !== 'resolved' && complaint.status !== 'closed' && (
+                      <>
+                        <Button size="small" onClick={() => handleStatusChange(complaint.id, 'resolved')} sx={{ mr: 1 }}>Resolve</Button>
+                        <Button size="small" onClick={() => handleStatusChange(complaint.id, 'closed')}>Close</Button>
+                      </>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
     </Container>
   );
 };

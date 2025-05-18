@@ -1,52 +1,43 @@
-import requests
-import json
+import asyncio
+from database import users_collection
+from passlib.context import CryptContext
+from datetime import datetime
 import sys
-import re
 
-def validate_inputs(national_id, sim_card, password):
-    if not re.fullmatch(r"\d{16}", national_id):
-        print("National ID must be exactly 16 digits")
-        sys.exit(1)
-    if not re.fullmatch(r"07\d{8}", sim_card):
-        print("Phone number must start with 07 and be 10 digits")
-        sys.exit(1)
-    if (len(password) < 8 or
-        not re.search(r"[A-Z]", password) or
-        not re.search(r"[a-z]", password) or
-        not re.search(r"\d", password) or
-        not re.search(r"[@$!%*?&#]", password)):
-        print("Password must be at least 8 characters and include uppercase, lowercase, number, and special character")
-        sys.exit(1)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def create_superuser(email, password, name, sim_card, national_id):
-    url = 'http://localhost:5000/users/'
-    
-    data = {
-        'email': email,
-        'password': password,
-        'full_name': name,
-        'phone_number': sim_card,
-        'national_id': national_id
-    }
-    
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+async def create_superuser(email: str, password: str, full_name: str, phone_number: str, national_id: str):
     try:
-        response = requests.post(url, json=data)
-        response.raise_for_status()
-        print(f"Superuser created successfully: {email}")
-    except requests.exceptions.RequestException as e:
-        print(f"Error creating superuser: {str(e)}")
-        sys.exit(1)
+        # Check if user already exists
+        if await users_collection.find_one({"email": email}):
+            print(f"User with email {email} already exists.")
+            return
 
-if __name__ == '__main__':
+        # Create superuser
+        user = {
+            "email": email,
+            "hashed_password": get_password_hash(password),
+            "full_name": full_name,
+            "phone_number": phone_number,
+            "national_id": national_id,
+            "role": "system_admin",
+            "is_active": True,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        
+        result = await users_collection.insert_one(user)
+        print(f"Superuser created successfully with ID: {result.inserted_id}")
+    except Exception as e:
+        print(f"Error creating superuser: {e}")
+
+if __name__ == "__main__":
     if len(sys.argv) != 6:
-        print("Usage: python create_superuser.py <email> <password> <name> <sim_card> <national_id>")
+        print("Usage: python create_superuser.py <email> <password> <full_name> <phone_number> <national_id>")
         sys.exit(1)
     
-    email = sys.argv[1]
-    password = sys.argv[2]
-    name = sys.argv[3]
-    sim_card = sys.argv[4]
-    national_id = sys.argv[5]
-    
-    validate_inputs(national_id, sim_card, password)
-    create_superuser(email, password, name, sim_card, national_id) 
+    email, password, full_name, phone_number, national_id = sys.argv[1:]
+    asyncio.run(create_superuser(email, password, full_name, phone_number, national_id)) 

@@ -1,67 +1,85 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List
-from datetime import timedelta
-import re
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from datetime import datetime, timedelta
+from typing import Optional, List
+from backend.models import User, UserCreate
+from backend.database import users_collection, convert_id
+from bson import ObjectId
 
-import models
-import schemas
-from database import get_db
-from auth import (
-    get_password_hash,
-    verify_password,
-    create_access_token,
-    get_current_active_user,
-    ACCESS_TOKEN_EXPIRE_MINUTES
-)
+router = APIRouter()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-router = APIRouter(
-    prefix="/users",
-    tags=["users"]
-)
+# JWT Configuration
+SECRET_KEY = "your-secret-key"  # Change this in production
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-@router.post("/", response_model=schemas.User)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    # Validation for national ID
-    if not re.fullmatch(r"\d{16}", user.national_id):
-        raise HTTPException(status_code=400, detail="National ID must be exactly 16 digits")
-    # Validation for phone number
-    if not re.fullmatch(r"07\d{8}", user.phone_number):
-        raise HTTPException(status_code=400, detail="Phone number must start with 07 and be 10 digits")
-    # Validation for strong password
-    password = user.password
-    if (len(password) < 8 or
-        not re.search(r"[A-Z]", password) or
-        not re.search(r"[a-z]", password) or
-        not re.search(r"\d", password) or
-        not re.search(r"[@$!%*?&#]", password)):
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters and include uppercase, lowercase, number, and special character")
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
 
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    hashed_password = get_password_hash(user.password)
-    db_user = models.User(
-        email=user.email,
-        hashed_password=hashed_password,
-        full_name=user.full_name,
-        phone_number=user.phone_number,
-        national_id=user.national_id
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
     )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    if user is None:
+        raise credentials_exception
+    return convert_id(user)
 
-@router.post("/token", response_model=schemas.Token)
-async def login_for_access_token(
-    email: str,
-    password: str,
-    db: Session = Depends(get_db)
-):
-    user = db.query(models.User).filter(models.User.email == email).first()
-    if not user or not verify_password(password, user.hashed_password):
+@router.post("/register", response_model=User)
+async def create_user(user: UserCreate):
+    # Check if user already exists
+    if await users_collection.find_one({"email": user.email}):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    if await users_collection.find_one({"national_id": user.national_id}):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="National ID already registered"
+        )
+    
+    # Create new user
+    user_dict = user.dict()
+    user_dict["hashed_password"] = get_password_hash(user_dict.pop("password"))
+    user_dict["created_at"] = datetime.utcnow()
+    user_dict["updated_at"] = datetime.utcnow()
+    
+    result = await users_collection.insert_one(user_dict)
+    created_user = await users_collection.find_one({"_id": result.inserted_id})
+    return convert_id(created_user)
+
+@router.post("/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = await users_collection.find_one({"email": form_data.username})
+    if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -70,22 +88,20 @@ async def login_for_access_token(
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
+        data={"sub": str(user["_id"])}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@router.get("/me", response_model=schemas.User)
-async def read_users_me(current_user: models.User = Depends(get_current_active_user)):
+@router.get("/me", response_model=User)
+async def read_users_me(current_user: dict = Depends(get_current_user)):
     return current_user
 
-@router.get("/", response_model=List[schemas.User])
-def read_users(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    if current_user.role != models.UserRole.SYSTEM_ADMIN:
-        raise HTTPException(status_code=403, detail="Not authorized to view all users")
-    users = db.query(models.User).offset(skip).limit(limit).all()
-    return users 
+@router.get("/users", response_model=List[User])
+async def read_users(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "system_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view all users"
+        )
+    users = await users_collection.find().to_list(length=None)
+    return [convert_id(user) for user in users] 
