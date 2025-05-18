@@ -91,25 +91,49 @@ A modern platform for Rwandan citizens to submit complaints and feedback about p
 ## Features
 
 ### User Management
-- 🔐 Secure authentication with JWT
-- 👥 Role-based access control (Citizen, Agency Admin, System Admin)
-- 📱 Phone number validation (Rwanda format)
-- 🆔 National ID validation (16 digits)
-- 🔒 Strong password requirements
+- Secure authentication with JWT
+- Role-based access control (Citizen, Agency Admin, System Admin)
+- Phone number validation (Rwanda format)
+- National ID validation (16 digits)
+- Strong password requirements
 
 ### Complaint Management
-- 📝 Submit complaints with attachments
-- 🏢 Automatic routing to appropriate government agencies
-- 📊 Track complaint status
-- 📈 Analytics dashboard for administrators
-- 🔍 Search and filter complaints
+- Submit complaints with attachments
+- Automatic routing to appropriate government agencies
+- Track complaint status
+- Analytics dashboard for administrators
+- Search and filter complaints
 
 ### User Interface
-- 📱 Responsive design for all devices
-- 🎨 Modern Material-UI components
-- 🌐 Localized for Rwanda
-- 🎯 Intuitive navigation
-- 📊 Interactive dashboards
+- Responsive design for all devices
+- Modern Material-UI components
+- Localized for Rwanda
+- Intuitive navigation
+- Interactive dashboards
+
+## User Roles and Permissions
+
+The system supports three main user roles:
+
+### 1. Citizen
+- Can register and log in to the platform
+- Submit complaints and feedback about public services
+- Track the status of their complaints
+- View their complaint history
+
+### 2. Agency Admin
+- Manages complaints assigned to their agency
+- Updates the status of complaints (e.g., in progress, resolved)
+- Communicates with citizens regarding their complaints
+- Views analytics and reports related to their agency
+
+### 3. System Admin
+- Has full access to all system features
+- Manages all users (citizens, agency admins)
+- Manages government agencies
+- Assigns complaints to agencies
+- Views system-wide analytics and reports
+- Can create other admin accounts
 
 ## Tech Stack
 
