@@ -22,6 +22,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const BACKEND_URL = 'http://localhost:5000';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,12 +39,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/auth/login`, {
+      const response = await fetch(`${BACKEND_URL}/api/auth/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username: email, password }),
       });
 
       if (!response.ok) {
@@ -50,19 +52,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const data = await response.json();
-      const userData = {
-        id: data.id,
-        email: data.email,
-        name: data.full_name,
-        nationalId: data.national_id,
-        simCard: data.phone_number,
-        role: data.role,
-        parentRole: data.parent_role,
-        isActive: data.is_active,
+      
+      // Get user data after successful login
+      const userResponse = await fetch(`${BACKEND_URL}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${data.access_token}`,
+        },
+      });
+
+      if (!userResponse.ok) {
+        throw new Error('Failed to get user data');
+      }
+
+      const userData = await userResponse.json();
+      const formattedUserData = {
+        id: userData._id,
+        email: userData.email,
+        name: userData.full_name,
+        nationalId: userData.national_id,
+        simCard: userData.phone_number,
+        role: userData.role,
+        parentRole: userData.parent_role,
+        isActive: userData.is_active,
       };
 
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(formattedUserData);
+      localStorage.setItem('user', JSON.stringify(formattedUserData));
       localStorage.setItem('token', data.access_token);
     } catch (error) {
       console.error('Login error:', error);
@@ -72,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (userData: any) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/auth/register`, {
+      const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -81,12 +96,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (!response.ok) {
-        throw new Error('Registration failed');
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Registration failed');
       }
 
       const data = await response.json();
       const newUser = {
-        id: data.id,
+        id: data._id,
         email: data.email,
         name: data.full_name,
         nationalId: data.national_id,
@@ -98,7 +114,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser(newUser);
       localStorage.setItem('user', JSON.stringify(newUser));
-      localStorage.setItem('token', data.access_token);
+      
+      // After registration, log in the user
+      await login(userData.email, userData.password);
     } catch (error) {
       throw error;
     }
