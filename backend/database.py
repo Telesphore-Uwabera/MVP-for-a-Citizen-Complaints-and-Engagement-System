@@ -20,8 +20,8 @@ async_db = async_client[DATABASE_NAME]
 
 # Collections
 users_collection = async_db.users
-complaints_collection = db.complaints
-agencies_collection = db.agencies
+complaints_collection = async_db.complaints
+agencies_collection = async_db.agencies
 
 # Helper function to convert MongoDB _id to string
 def convert_id(obj):

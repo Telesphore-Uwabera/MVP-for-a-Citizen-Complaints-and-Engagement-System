@@ -28,12 +28,12 @@ const validationSchema = Yup.object({
   confirmPassword: Yup.string()
     .oneOf([Yup.ref('password')], 'Passwords must match')
     .required('Required'),
-  name: Yup.string()
+  full_name: Yup.string()
     .required('Required'),
-  nationalId: Yup.string()
+  national_id: Yup.string()
     .matches(/^\d{16}$/, 'National ID must be exactly 16 digits')
     .required('Required'),
-  simCard: Yup.string()
+  phone_number: Yup.string()
     .matches(/^07\d{8}$/, 'Phone number must start with 07 and be 10 digits')
     .required('Required'),
 });
@@ -48,9 +48,9 @@ const Register: React.FC = () => {
       email: '',
       password: '',
       confirmPassword: '',
-      name: '',
-      nationalId: '',
-      simCard: '',
+      full_name: '',
+      national_id: '',
+      phone_number: '',
     },
     validationSchema,
     onSubmit: async (values) => {
@@ -58,9 +58,9 @@ const Register: React.FC = () => {
         await register({
           email: values.email,
           password: values.password,
-          full_name: values.name,
-          national_id: values.nationalId,
-          phone_number: values.simCard,
+          full_name: values.full_name,
+          national_id: values.national_id,
+          phone_number: values.phone_number,
           role: 'citizen',
         });
         navigate('/dashboard');
@@ -130,13 +130,13 @@ const Register: React.FC = () => {
               margin="normal"
               required
               fullWidth
-              id="name"
+              id="full_name"
               label="Full Name"
-              name="name"
-              value={formik.values.name}
+              name="full_name"
+              value={formik.values.full_name}
               onChange={formik.handleChange}
-              error={formik.touched.name && Boolean(formik.errors.name)}
-              helperText={formik.touched.name && formik.errors.name}
+              error={formik.touched.full_name && Boolean(formik.errors.full_name)}
+              helperText={formik.touched.full_name && formik.errors.full_name}
               autoComplete="name"
               autoFocus
             />
@@ -144,26 +144,26 @@ const Register: React.FC = () => {
               margin="normal"
               required
               fullWidth
-              id="nationalId"
+              id="national_id"
               label="National ID"
-              name="nationalId"
-              value={formik.values.nationalId}
+              name="national_id"
+              value={formik.values.national_id}
               onChange={formik.handleChange}
-              error={formik.touched.nationalId && Boolean(formik.errors.nationalId)}
-              helperText={formik.touched.nationalId && formik.errors.nationalId}
+              error={formik.touched.national_id && Boolean(formik.errors.national_id)}
+              helperText={formik.touched.national_id && formik.errors.national_id}
               placeholder="Enter your 16-digit National ID"
             />
             <TextField
               margin="normal"
               required
               fullWidth
-              id="simCard"
+              id="phone_number"
               label="Phone Number"
-              name="simCard"
-              value={formik.values.simCard}
+              name="phone_number"
+              value={formik.values.phone_number}
               onChange={formik.handleChange}
-              error={formik.touched.simCard && Boolean(formik.errors.simCard)}
-              helperText={formik.touched.simCard && formik.errors.simCard}
+              error={formik.touched.phone_number && Boolean(formik.errors.phone_number)}
+              helperText={formik.touched.phone_number && formik.errors.phone_number}
               placeholder="Enter your phone number (e.g., 0712345678)"
             />
             <Button
