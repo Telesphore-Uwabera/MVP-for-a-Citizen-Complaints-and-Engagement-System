@@ -39,16 +39,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
+      const params = new URLSearchParams();
+      params.append('username', email);
+      params.append('password', password);
+
       const response = await fetch(`${BACKEND_URL}/api/auth/token`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({ username: email, password }),
+        body: params.toString(),
       });
 
       if (!response.ok) {
-        throw new Error('Login failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Login failed');
       }
 
       const data = await response.json();

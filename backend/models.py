@@ -2,21 +2,11 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field
 from bson import ObjectId
-from pydantic import GetCoreSchemaHandler
-from pydantic_core import core_schema
 
 class PyObjectId(ObjectId):
     @classmethod
-    def __get_pydantic_json_schema__(cls, core_schema, handler):
-        # This tells Pydantic v2 how to generate the JSON schema for this type
-        return {'type': 'string'}
-
-    @classmethod
-    def __get_pydantic_core_schema__(cls, source, handler: GetCoreSchemaHandler):
-        return core_schema.no_info_plain_validator_function(
-            cls.validate,
-            serialization=core_schema.to_string_ser_schema(),
-        )
+    def __get_validators__(cls):
+        yield cls.validate
 
     @classmethod
     def validate(cls, v):
@@ -24,12 +14,16 @@ class PyObjectId(ObjectId):
             raise ValueError("Invalid ObjectId")
         return ObjectId(v)
 
+    @classmethod
+    def __modify_schema__(cls, field_schema):
+        field_schema.update(type="string")
+
 class MongoBaseModel(BaseModel):
     id: Optional[PyObjectId] = Field(alias="_id", default=None)
 
     class Config:
         json_encoders = {ObjectId: str}
-        validate_by_name = True
+        allow_population_by_field_name = True
 
 class UserBase(MongoBaseModel):
     email: EmailStr

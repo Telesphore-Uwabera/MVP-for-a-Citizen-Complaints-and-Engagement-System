@@ -4,8 +4,8 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Optional, List
-from backend.models import User, UserCreate
-from backend.database import users_collection, convert_id
+from models import User, UserCreate
+from database import users_collection, convert_id
 from bson import ObjectId
 
 router = APIRouter()

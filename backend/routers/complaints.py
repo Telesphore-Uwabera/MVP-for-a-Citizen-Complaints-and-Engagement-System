@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from typing import List, Optional
 from datetime import datetime
-from backend.models import Complaint, ComplaintCreate
-from backend.database import complaints_collection, users_collection, agencies_collection, convert_id
-from backend.routers.users import get_current_user
+from models import Complaint, ComplaintCreate
+from database import complaints_collection, users_collection, agencies_collection, convert_id
+from routers.users import get_current_user
 from bson import ObjectId
 
 router = APIRouter()

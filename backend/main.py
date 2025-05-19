@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime
-from backend.routers import users, complaints, agencies
-from backend.database import client
+from routers import users, complaints, agencies
+from database import client
 
 app = FastAPI(
     title="Rwanda Citizen Engagement System API",
