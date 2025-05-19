@@ -5,7 +5,7 @@
 ### For Citizens (End Users)
 
 1. **Access the Application**
-   - Open your browser and go to `http://localhost:3000` (or the deployed URL).
+   - Open your browser and go to `http://localhost:3000` 
 
 2. **Register an Account**
    - Click on the **Register** link.
@@ -284,10 +284,14 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Support
 
-For support, please open an issue in the GitHub repository or contact the development team.
+For support, please open an issue in the GitHub repository or contact the developer via +250785043355.
 
 ## Acknowledgments
 
 - Rwanda Information Society Authority (RISA)
 - Ministry of ICT and Innovation
-- All contributors and stakeholders 
+
+## Contributors
+
+- Developed by Telesphore Uwabera
+- Visit [my portfolio](https://uwaberatelesphore.netlify.app)
