@@ -293,5 +293,5 @@ For support, please open an issue in the GitHub repository or contact the develo
 
 ## Contributors
 
-Developed by Telesphore Uwabera
-Visit [my portfolio](https://uwaberatelesphore.netlify.com)
+- Developed by Telesphore Uwabera
+- Visit [my portfolio](https://uwaberatelesphore.netlify.com)
