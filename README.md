@@ -5,7 +5,7 @@
 ### For Citizens (End Users)
 
 1. **Access the Application**
-   - Open your browser and go to `http://localhost:3000` (or the deployed URL).
+   - Open your browser and go to `http://localhost:3000` 
 
 2. **Register an Account**
    - Click on the **Register** link.
@@ -290,4 +290,8 @@ For support, please open an issue in the GitHub repository or contact the develo
 
 - Rwanda Information Society Authority (RISA)
 - Ministry of ICT and Innovation
-- All contributors and stakeholders 
+
+## Contributors
+
+Developed by Telesphore Uwabera
+Visit [my portfolio](https://uwaberatelesphore.netlify.com)
