@@ -41,7 +41,7 @@ const Home: React.FC = () => {
 
   return (
     <Box>
-      {/* Hero Section */}
+      {/* Hero Section Codes*/}
       <Box
         sx={{
           bgcolor: 'primary.main',
